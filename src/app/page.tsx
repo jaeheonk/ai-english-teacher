@@ -48,6 +48,7 @@ export default function Home() {
   // Review mode state
   const [englishLevel, setEnglishLevel] = useState<string>("middle");
   const [resultPhase, setResultPhase] = useState<ResultPhase>("review");
+  const [editableOriginalText, setEditableOriginalText] = useState<string>("");
   // Set of indices the user has marked as INVALID (OCR 오인식)
   const [rejectedIndices, setRejectedIndices] = useState<Set<number>>(new Set());
 
@@ -136,11 +137,48 @@ export default function Home() {
 
       setTimeout(() => {
         setResult(data);
+        setEditableOriginalText(data.original);
         setIsLoading(false);
         setLoadingStep("idle");
       }, 400);
     } catch (err) {
       if (stepTimerRef.current) clearTimeout(stepTimerRef.current);
+      setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
+      setIsLoading(false);
+      setLoadingStep("idle");
+    }
+  };
+
+  const handleReAnalyze = async () => {
+    if (!editableOriginalText || editableOriginalText === result?.original) return;
+
+    setIsLoading(true);
+    setError(null);
+    setLoadingStep("grammar");
+
+    try {
+      const res = await fetch("/api/analyze-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: editableOriginalText,
+          level: englishLevel,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "재분석에 실패했습니다.");
+
+      setLoadingStep("done");
+
+      setTimeout(() => {
+        setResult(data);
+        setEditableOriginalText(data.original);
+        setRejectedIndices(new Set());
+        setIsLoading(false);
+        setLoadingStep("idle");
+      }, 400);
+    } catch (err) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
       setIsLoading(false);
       setLoadingStep("idle");
@@ -375,9 +413,21 @@ export default function Home() {
                 <div className={`${styles.textCard} ${styles.textCardOriginal}`}>
                   <div className={styles.textCardHeader}>
                     <div className={`${styles.textCardIcon} ${styles.textCardIconOriginal}`}>✍️</div>
-                    <span className={styles.textCardLabel}>원문 (OCR 인식 결과)</span>
+                    <span className={styles.textCardLabel}>원문 (OCR 인식 결과 수정 가능)</span>
                   </div>
-                  <p className={styles.textCardContent}>{result.original}</p>
+                  <textarea
+                    className={styles.editableTextArea}
+                    value={editableOriginalText}
+                    onChange={(e) => setEditableOriginalText(e.target.value)}
+                    rows={4}
+                  />
+                  {editableOriginalText !== result.original && (
+                    <div className={styles.reanalyzeActions}>
+                      <button className={styles.reanalyzeBtn} onClick={handleReAnalyze} disabled={isLoading}>
+                        {isLoading ? "⏳ 처리 중..." : "🔄 수정된 텍스트로 다시 리뷰하기"}
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Interactive correction items */}
@@ -441,13 +491,15 @@ export default function Home() {
                 </div>
 
                 {/* Confirm button */}
-                <button
-                  id="confirm-review-btn"
-                  className={styles.confirmBtn}
-                  onClick={handleConfirm}
-                >
-                  ✅ 검토 완료 ({result.explanations.length - rejectedIndices.size}개 항목 확정)
-                </button>
+                {editableOriginalText === result.original && (
+                  <button
+                    id="confirm-review-btn"
+                    className={styles.confirmBtn}
+                    onClick={handleConfirm}
+                  >
+                    ✅ 검토 완료 ({result.explanations.length - rejectedIndices.size}개 항목 확정)
+                  </button>
+                )}
               </>
             )}
 
