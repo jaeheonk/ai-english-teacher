@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData();
     const imageFile = formData.get("image") as File;
+    const level = formData.get("level") as string || "middle";
 
     if (!imageFile) {
       return NextResponse.json({ error: "No image provided" }, { status: 400 });
@@ -73,25 +74,33 @@ export async function POST(req: NextRequest) {
       | "image/webp"
       | "image/gif";
 
+
+    let levelDescription = "Middle school level (Intermediate)";
+    if (level === "elementary") levelDescription = "Elementary school level (Beginner)";
+    else if (level === "high") levelDescription = "High school/College level (Advanced)";
+    else if (level === "native") levelDescription = "Native speaker level (Fluent/Expert)";
+
     const prompt = `You are an expert English teacher and OCR specialist.
+
+Your student's target English proficiency level is: ${levelDescription}.
 
 Your task:
 1. Read the handwritten English text from this image (OCR).
-2. Analyze the grammar and correct any errors.
+2. Analyze the grammar and correct any errors. PLEASE adjust the strictness of your corrections and the complexity of your grammar explanations to match the student's target proficiency level (${levelDescription}).
 3. Explain the corrections in clear, simple Korean.
 
 Respond STRICTLY in the following JSON format with NO extra text, NO markdown, NO code fences — raw JSON only:
 {
   "original": "The exact text you read from the handwriting, word for word",
-  "corrected": "The grammatically corrected version of the text",
+  "corrected": "The grammatically corrected version of the text, matching the ${levelDescription}",
   "explanations": [
     {
       "error": "The specific error found (quote the original wrong part)",
       "correction": "What it was changed to",
-      "reason": "Simple Korean explanation of why this is wrong and how to fix it"
+      "reason": "Simple Korean explanation of why this is wrong and how to fix it, tailored to the ${levelDescription}"
     }
   ],
-  "overall_feedback": "Overall feedback about the writing in Korean (1-2 sentences, encouraging tone)"
+  "overall_feedback": "Overall feedback about the writing in Korean (1-2 sentences, encouraging tone), considering their level is ${levelDescription}"
 }
 
 If there are no grammar errors, set "explanations" to an empty array [].

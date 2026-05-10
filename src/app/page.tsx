@@ -28,6 +28,14 @@ const LOADING_STEPS: { key: LoadingStep; label: string }[] = [
   { key: "done", label: "완료!" },
 ];
 
+const ENGLISH_LEVELS = [
+  { value: "elementary", label: "초급 (미국 초등학생 수준)" },
+  { value: "middle", label: "중급 (미국 중학생 수준)" },
+  { value: "high", label: "고급 (미국 고등학생/대학생 수준)" },
+  { value: "native", label: "최상급 (원어민 수준)" },
+];
+
+
 export default function Home() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -38,6 +46,7 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
 
   // Review mode state
+  const [englishLevel, setEnglishLevel] = useState<string>("middle");
   const [resultPhase, setResultPhase] = useState<ResultPhase>("review");
   // Set of indices the user has marked as INVALID (OCR 오인식)
   const [rejectedIndices, setRejectedIndices] = useState<Set<number>>(new Set());
@@ -112,6 +121,7 @@ export default function Home() {
     try {
       const formData = new FormData();
       formData.append("image", imageFile);
+      formData.append("level", englishLevel);
 
       const res = await fetch("/api/analyze", {
         method: "POST",
@@ -274,14 +284,30 @@ export default function Home() {
           />
 
           {imagePreview && (
-            <button
-              id="analyze-btn"
-              className={styles.analyzeBtn}
-              onClick={handleAnalyze}
-              disabled={isLoading}
-            >
-              {isLoading ? "⏳ 분석 중..." : "✨ 문법 첨삭 시작하기"}
-            </button>
+            <div className={styles.analyzeOptions}>
+              <div className={styles.levelSelector}>
+                <label htmlFor="english-level-select" className={styles.levelLabel}>목표 영어 수준:</label>
+                <select
+                  id="english-level-select"
+                  className={styles.levelSelect}
+                  value={englishLevel}
+                  onChange={(e) => setEnglishLevel(e.target.value)}
+                  disabled={isLoading}
+                >
+                  {ENGLISH_LEVELS.map(level => (
+                    <option key={level.value} value={level.value}>{level.label}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                id="analyze-btn"
+                className={styles.analyzeBtn}
+                onClick={handleAnalyze}
+                disabled={isLoading}
+              >
+                {isLoading ? "⏳ 분석 중..." : "✨ 문법 첨삭 시작하기"}
+              </button>
+            </div>
           )}
         </div>
 
